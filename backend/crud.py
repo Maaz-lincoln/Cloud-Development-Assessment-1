@@ -1,11 +1,23 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from models import User, Job, Notification, JobStatus
-from auth import hash_password, verify_password  # Add verify_password import
+from auth import hash_password, verify_password
+from fastapi import HTTPException, status
+import logging
+
+logger = logging.getLogger(__name__)
 
 async def create_user(db: AsyncSession, username: str, email: str, password: str):
+    result = await db.execute(select(User).where(User.username == username))
+    if result.scalars().first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+
+    result = await db.execute(select(User).where(User.email == email))
+    if result.scalars().first():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
+
     hashed_password = hash_password(password)
-    user = User(username=username, email=email, hashed_password=hashed_password)
+    user = User(username=username, email=email, hashed_password=hashed_password, credits=100)
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -22,6 +34,13 @@ async def add_credits(db: AsyncSession, user: User, credits: int):
     user.credits += credits
     await db.commit()
     await db.refresh(user)
+    return user
+
+async def deduct_credits(db: AsyncSession, user: User, amount: int):
+    user.credits -= amount
+    await db.commit()
+    await db.refresh(user)
+    logger.info(f"Deducted {amount} credits from user {user.id}. New balance: {user.credits}")
     return user
 
 async def create_job(db: AsyncSession, user: User, input_text: str):

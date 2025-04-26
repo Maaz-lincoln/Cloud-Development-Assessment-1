@@ -10,5 +10,8 @@ To run the project
 
 4:uvicorn main:app --reload
 
-5:celery -A celery_config worker --loglevel=info  
+5:celery -A celery_config worker --loglevel=info --pool=solo
 (before running the above command active the venv and run redis server using binary file which i get from this link: https://github.com/microsoftarchive/redis/releases , extract and run redis-server.exe )
+
+celery -A celery_config worker --loglevel=info
+celery -A celery_config beat --loglevel=info

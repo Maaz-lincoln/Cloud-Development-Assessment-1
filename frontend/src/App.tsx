@@ -4,16 +4,19 @@ import {
   Route,
   Navigate,
   useLocation,
+  useNavigate,
 } from "react-router-dom";
 import { useState, useEffect, createContext, useContext } from "react";
-import { Toaster } from "@/components/ui/toaster";
+import { useQuery } from "react-query";
+import { ToastContainer } from "react-toastify";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
-import Dashboard from "./pages/Dashboard";
 import JobsPage from "./pages/JobsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import ApiDocumentation from "./pages/ApiDocumentation";
 import Layout from "./components/Layout";
 import api, { setAuthToken } from "./lib/api";
+import Profile from "./pages/Profile";
 
 interface User {
   id: number;
@@ -37,11 +40,12 @@ export const useAuth = () => useContext(AuthContext)!;
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
   const fetchUser = async (jwt: string) => {
-    console.log("JWT Token:", jwt); // Debug the token
-    console.log("Headers:", api.defaults.headers); // Debug headers
+    console.log("JWT Token:", jwt);
+    console.log("Headers:", api.defaults.headers);
     console.log(
       "Fetch User - Authorization Header:",
       api.defaults.headers.common["Authorization"]
@@ -50,14 +54,28 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthToken(jwt);
       const { data } = await api.get("/auth/me");
       setUser({ ...data, token: jwt });
+      const protectedRoutes = [
+        "/dashboard",
+        "/profile",
+        "/notifications",
+        "/docs",
+      ];
+      if (!protectedRoutes.includes(location.pathname)) {
+        navigate("/dashboard", { replace: true });
+      }
     } catch (error) {
-      console.error("Fetch User Error:", error?.response?.data); // Log server error details
+      console.error("Fetch User Error:", error?.response?.data);
       setUser(null);
+      setToken(null);
       setAuthToken(null, null);
+    } finally {
+      setLoading(false);
     }
   };
+
   const login = ({ token }: { token: string }) => {
     setToken(token);
+    localStorage.setItem("access_token", token);
     fetchUser(token);
   };
 
@@ -65,13 +83,54 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setToken(null);
     setAuthToken(null, null);
+    localStorage.removeItem("access_token");
   };
 
   useEffect(() => {
-    if (token) {
-      fetchUser(token);
+    const storedToken = localStorage.getItem("access_token");
+    if (storedToken) {
+      setToken(storedToken);
+      fetchUser(storedToken);
+    } else {
+      setLoading(false);
     }
-  }, [token]);
+  }, []);
+
+  useQuery(
+    ["user", token],
+    async () => {
+      if (!token) return null;
+      const { data } = await api.get("/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return data;
+    },
+    {
+      enabled: !!token,
+      refetchInterval: 60000,
+      onSuccess: (data) => {
+        if (data) {
+          setUser({ ...data, token });
+        }
+      },
+      onError: (err: any) => {
+        console.error("Periodic Fetch User Error:", err?.response?.data);
+        setUser(null);
+        setToken(null);
+        setAuthToken(null, null);
+        localStorage.removeItem("access_token");
+      },
+      onSettled: () => {
+        setLoading(false);
+      },
+    }
+  );
+
+  // useEffect(() => {
+  //   if (token) {
+  //     fetchUser(token);
+  //   }
+  // }, [token]);
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, loading }}>
@@ -81,8 +140,17 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const location = useLocation();
+
+  if (loading) {
+    return (
+      <div className="flex justify-center min-w-screen min-h-screen items-center">
+        <span className="loader"></span>
+      </div>
+    );
+  }
+
   if (!user) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
@@ -91,8 +159,8 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
@@ -101,17 +169,17 @@ export default function App() {
             element={
               <RequireAuth>
                 <Layout>
-                  <Dashboard />
+                  <JobsPage />
                 </Layout>
               </RequireAuth>
             }
           />
           <Route
-            path="/jobs"
+            path="/profile"
             element={
               <RequireAuth>
                 <Layout>
-                  <JobsPage />
+                  <Profile />
                 </Layout>
               </RequireAuth>
             }
@@ -126,10 +194,20 @@ export default function App() {
               </RequireAuth>
             }
           />
+          <Route
+            path="/docs"
+            element={
+              <RequireAuth>
+                <Layout>
+                  <ApiDocumentation />
+                </Layout>
+              </RequireAuth>
+            }
+          />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
-        <Toaster />
-      </Router>
-    </AuthProvider>
+        <ToastContainer />
+      </AuthProvider>
+    </Router>
   );
 }

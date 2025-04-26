@@ -4,14 +4,14 @@ from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from database import SessionLocal, get_db  # Import get_db from database.py
+from database import SessionLocal, get_db 
 from models import User
 from sqlalchemy.future import select
 
 SECRET_KEY = "asdAODam"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
-REFRESH_TOKEN_EXPIRE_DAYS = 7  # 7 days
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 
+REFRESH_TOKEN_EXPIRE_DAYS = 7  
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")

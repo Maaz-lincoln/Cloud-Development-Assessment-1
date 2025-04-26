@@ -12,9 +12,15 @@ export function setAuthToken(
 ) {
   console.log(token, "token...........");
   if (token) {
+    localStorage.setItem("access_token", token);
+    if (refreshToken) {
+      localStorage.setItem("refresh_token", refreshToken);
+    }
     api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
   } else {
     delete api.defaults.headers.common["Authorization"];
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("refresh_token");
   }
   refreshToken = refresh;
 }

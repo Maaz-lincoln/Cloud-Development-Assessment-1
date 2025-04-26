@@ -2,8 +2,9 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.routing import APIRouter
 from auth import create_access_token, create_refresh_token, get_current_user, oauth2_scheme
-from database import engine, Base, get_db  # Import get_db from database.py
+from database import engine, Base, get_db
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from schemas import UserCreate, UserRead, UserLogin, JobCreate, JobRead, NotificationRead, Token, CreditsAdd
 from crud import create_user, authenticate_user, add_credits, create_job, update_job_status, get_jobs_for_user, create_notification, get_notifications_for_user, mark_notification_read
 from utils import summarize_text, send_notification
@@ -12,7 +13,6 @@ import models
 import logging
 from jose import jwt, JWTError
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -22,10 +22,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Define the router
 router = APIRouter()
 
-origins = ["*"]  # Adjust in production
+origins = ["*"] 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -40,7 +39,6 @@ async def on_startup():
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables created successfully")
 
-# Auth Routes
 @app.post("/auth/signup", response_model=UserRead, description="Register a new user with username, email, and password.")
 async def signup(user: UserCreate, db: AsyncSession = Depends(get_db)):
     u = await create_user(db, user.username, user.email, user.password)
@@ -87,19 +85,33 @@ async def refresh_token(refresh_token: str, db: AsyncSession = Depends(get_db)):
 async def get_me(current_user: models.User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return current_user
 
-# Credit Routes
 @app.post("/credits/add", response_model=UserRead, description="Add credits to the current user (for testing).")
 async def add_user_credits(credits: CreditsAdd, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     user = await add_credits(db, current_user, credits.credits)
     logger.info(f"Added {credits.credits} credits to user {user.username}")
     return user
 
-# Job Routes
+@app.get("/credits", description="Get the current user's credits.")
+async def get_credits(current_user: models.User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return {"credits": current_user.credits}
+
 @app.post("/jobs/submit", response_model=JobRead, description="Submit a text summarization job.")
 async def submit_job(job: JobCreate, db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
+    if current_user.credits < 10:
+        raise HTTPException(status_code=400, detail="Credits are low. You will receive 100 credits next day.")
+    
+    result = await db.execute(select(models.Job).where(models.Job.user_id == current_user.id))
+    user_jobs = result.scalars().all()
+    user_job_count = len(user_jobs) + 1 
+
     submitted_job = await create_job(db, current_user, job.input_text)
     process_ai_job_task.delay(submitted_job.id)
-    await create_notification(db, current_user, f"Your job {submitted_job.id} was submitted!", "info")
+    await create_notification(
+        db,
+        current_user,
+        f"Your {user_job_count}{'st' if user_job_count == 1 else 'nd' if user_job_count == 2 else 'rd' if user_job_count == 3 else 'th'} job was submitted! Credits will be deducted upon completion.",
+        "info"
+    )
     logger.info(f"Job {submitted_job.id} submitted by user {current_user.username}")
     return submitted_job
 
@@ -108,7 +120,6 @@ async def my_jobs(db: AsyncSession = Depends(get_db), current_user=Depends(get_c
     jobs = await get_jobs_for_user(db, current_user)
     return jobs
 
-# Notification Routes
 @app.get("/notifications", response_model=list[NotificationRead], description="Get all notifications for the current user.")
 async def get_my_notifications(db: AsyncSession = Depends(get_db), current_user=Depends(get_current_user)):
     return await get_notifications_for_user(db, current_user)
@@ -119,10 +130,8 @@ async def mark_as_read(notification_id: int, db: AsyncSession = Depends(get_db),
     logger.info(f"Notification {notification_id} marked as read by user {current_user.username}")
     return notif
 
-# Health Check
 @app.get("/ping", description="Health check endpoint.")
 def ping():
     return {"message": "pong"}
 
-# Include the router in the main app
 app.include_router(router)

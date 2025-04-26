@@ -3,7 +3,6 @@ from typing import Optional
 from datetime import datetime
 from models import JobStatus
 
-# User Schemas
 class UserBase(BaseModel):
     username: constr(min_length=3, max_length=50)
     email: EmailStr
@@ -11,7 +10,7 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: constr(min_length=6)
 
-class UserRead(UserBase):  # Inherit from UserBase to include username and email
+class UserRead(UserBase): 
     id: int
     credits: int
 
@@ -22,17 +21,14 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
-# Token Schema
 class Token(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str
 
-# Credits Schema
 class CreditsAdd(BaseModel):
     credits: int
 
-# Job Schemas
 class JobCreate(BaseModel):
     input_text: str
 
@@ -46,7 +42,6 @@ class JobRead(BaseModel):
     class Config:
         from_attributes = True
 
-# Notification Schemas
 class NotificationRead(BaseModel):
     id: int
     type: str

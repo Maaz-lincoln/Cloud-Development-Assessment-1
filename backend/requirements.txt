@@ -3,6 +3,7 @@ uvicorn
 sqlalchemy
 aiosqlite
 passlib[bcrypt]
+pydantic[email]
 python-jose
 pydantic
 httpx
@@ -13,3 +14,6 @@ celery
 redis
 python-dotenv
 pydantic-settings
+asgiref
+transformers
+torch

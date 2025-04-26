@@ -3,14 +3,7 @@ import "./index.css";
 import App from "./App";
 import { QueryClient, QueryClientProvider } from "react-query";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
