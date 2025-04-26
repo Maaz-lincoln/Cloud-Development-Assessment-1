@@ -10,13 +10,14 @@ Plz follow these steps
 
 3: pip install -r requirements.txt
 (This will install all the packages which are mentioned in requirment.txt)
+This will take some time all packages downloads and our model will also download
 
 4:uvicorn main:app --reload
 (This command will run the backend project on local host)
 
 For next open new terminal
 
-activate the venv again usigng this command (venv/Scripts/activate) then move to step 5
+Activate the venv again usigng this command (venv/Scripts/activate) then move to step 5
 
 (before running the bello two command active the venv and run redis server using binary file which i get from this link: https://github.com/microsoftarchive/redis/releases , extract and run redis-server.exe )
 
