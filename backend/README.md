@@ -1,8 +1,9 @@
 To run the backend project, Python 3.13 and redis server required. for redis server u can download the binary file from this line https://github.com/microsoftarchive/redis/releases. After download run the redis server exe
 
 Plz follow these steps
+first go to backend directory
 
-1: python3 -m venv venv
+1: python -m venv venv
 (This command will create virtual environment)
 
 2: venv/Scripts/activate
