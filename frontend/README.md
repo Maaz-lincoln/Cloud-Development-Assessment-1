@@ -4,7 +4,7 @@ To run the frontend follow these steps
 
 1: Go to the frontend directory
 
-2: Run Command ( npm install ) on terminal for installing required packages
+2: Run Command ( npm install --force ) on terminal for installing required packages
 
 3: Run Command ( npm run dev ) on ternminal for running the frontend code in dev mode
 
