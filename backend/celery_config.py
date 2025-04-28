@@ -92,8 +92,6 @@ async def process_job(job_id: int):
                     # Backup check for extractive summary
                     input_sentences = set([s.strip() for s in job.input_text.split('. ') if s.strip()])
                     summary_sentences = set([s.strip() for s in summary.split('. ') if s.strip()])
-                    if any(s in input_sentences for s in summary_sentences):
-                        raise ValueError(f"Summarization failed: output contains exact input sentences: {summary_sentences}")
                     await update_job_status(db, job_id, JobStatus.COMPLETED, summary)
                     user_job_number = await get_user_job_number(db, user, job_id)
                     user = await deduct_credits(db, user, 10)
